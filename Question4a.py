@@ -4,6 +4,8 @@ import numpy as np
 import math as Math
 import random
 
+import Question1 as Erdos
+
 class erdos:
 
     def __init__(self, N, i, k, prevalence, repeat):
@@ -11,6 +13,7 @@ class erdos:
         self.N = N
         self.i = i
         self.k = k
+        self.e = 2.5
 
         self.prevalence = prevalence
         self.repeat = repeat
@@ -21,10 +24,43 @@ class erdos:
 
     def createGraph(self):
         """ Calculate the basic data for the graph """
+        """ Generate everything for the scale free network """
 
-        # Create a graph with N = self.N and <k> = self.k
-        self.G = nx.fast_gnp_random_graph(self.N, self.k / self.N)
+        # Create a graph with degrees following a power law distribution
 
+        s = []
+
+        count = 0
+
+        while len(s) < self.N:
+            nextval = int(nx.utils.powerlaw_sequence(int(self.k), self.e)[0])
+            
+            if nextval != 0:
+                count += nextval
+                s.append(nextval)
+                
+        # s scaled and rounded such that the average degree equals k
+        s = s / np.mean(s) * self.k
+        s = np.around(s).astype(int)
+
+        # Sum of degrees must be even. I added one edge to the first node to fix this
+        if sum(s) % 2:
+            s[0] += 1
+            
+        G = nx.configuration_model(s)
+        G = nx.Graph(G)
+           
+        # Remove self-loops
+        G.remove_edges_from(G.selfloop_edges())
+            
+        self.G = G
+        
+        self.generateInfected()
+        
+        
+    def generateInfected(self):
+        """ Generate infected nodes """
+        
         # Infect 0.01% of the vertices, random
         nrinfected = int(float(self.N)*float(0.001))
         infected = random.sample(xrange(0, self.N), nrinfected)
@@ -33,9 +69,6 @@ class erdos:
 
         for val in infected:
             self.infected[infected] = 1
-
-        # This function resulted in not exactly 0.01% of infected vertexes
-        # self.infected = (np.random.rand(self.N) <= 0.001).astype(int)
 
     def step(self, t):
         """ Do the calculation for this time step """
@@ -128,26 +161,25 @@ def runSim(tTotal, repeat, N, i, k):
 
 def main():
 
-    tTotal = 400
-    repeat = 50
+    tTotal = 350
+    repeat = 25
 
     # Run the two given simulations
     print 'Running simulation 1/2'
     sim1 = runSim(tTotal, repeat, 10**5, 0.01, 5.0)
     print 'Running simulation 2/2'
-    sim2 = runSim(tTotal, repeat, 10**5, 0.1, 0.8)
+    sim2 = Erdos.runSim(tTotal, repeat, 10**5, 0.01, 5.0)
 
     plt.figure()
 
-    printGraph(sim1, tTotal, repeat, "N=10^5, i = 0.01, <k> = 5.0", stepsize=1)
-    printGraph(sim2, tTotal, repeat, "N=10^5, i = 0.1, <k> = 0.8", stepsize=1)
+    printGraph(sim1, tTotal, repeat, "Scale-free network", stepsize=1)
+    printGraph(sim2, tTotal, repeat, "Erdos-Renyi network", stepsize=1)
 
     plt.legend(loc=2)
 
-    plt.title("Question 1b with 2 simulations")
+    plt.title("Question 4a with 2 simulations")
 
-    print """ The figure shows the two simulations needed for question 2. Every
-    simulation is simulated with """ + str(tTotal) + """ steps and this is repeated
+    print """ The figure shows the Erdos-Renyi and scale-free network simulation for <k>=5, i=0.1 and N=10^5. Every simulation is simulated with """ + str(tTotal) + """ steps and this is repeated
     """ + str(repeat) + """ times. """
 
     plt.show()
